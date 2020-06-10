@@ -1,0 +1,118 @@
+@name Pie's Updated Youtube Music E2 v1
+@persist [Prefix]:string [StreamData,Commands]:table [Playlist]:gtable [LastSongDuration]
+if(first()){
+    Prefix="."
+    
+    Commands=table(
+        "Help Command"        =Prefix+"help",
+        "Stop Current Song"   =Prefix+"stop",
+        "Change the Volume"   =Prefix+"volume",
+        "Play a song"         =Prefix+"play",
+        "Get Current Playlist"=Prefix+"playlist",
+        "Set/Get Playlist ID" =Prefix+"setplaylist",
+        "Retry the last song" =Prefix+"retry"
+    )
+    
+    StreamData=table(
+        "Channel"=743,
+        "Volume"=0.1,
+        "StreamSource"=entity(),
+        "playlistID"=owner():steamID()+"'s Playlist",
+        "CurrentSong"="",
+        "Youtube API Link"="https://rainsapi.com/yt/@api/json/mp3/",
+        "Hint Length"=7.5
+    )
+    
+    
+    
+    Playlist=gTable(StreamData["playlistID",string],1)
+    Playlist["Songs",array]=array(
+        "https://www.youtube.com/watch?v=taCRBFkUqdM&list=PLVVOhIUAR8_caSy1CEvTugBuYMkklkqK6&index=2",
+        "https://www.youtube.com/watch?v=KzkqgQRl5_c&list=PLVVOhIUAR8_caSy1CEvTugBuYMkklkqK6&index=3",
+        "https://www.youtube.com/watch?v=AYKYvVkhIYo&list=PLVVOhIUAR8_caSy1CEvTugBuYMkklkqK6&index=4",
+        "https://www.youtube.com/watch?v=MlfzZHeHBUI&list=PLVVOhIUAR8_caSy1CEvTugBuYMkklkqK6&index=5",
+        "https://www.youtube.com/watch?v=AeurKtKCtiw&list=PLVVOhIUAR8_caSy1CEvTugBuYMkklkqK6&index=6"
+    )
+    
+    function void playSong(Song:string){
+        Index=Song:toNumber()
+        
+        if(Index>0 || (Index==0 & Song=="0")){ #Check if the user gave a number as a song
+            print("Assuming \""+Song+"\" is a playlist position.")
+            if(Playlist["Songs",array]:exists(Index)){
+                playSong(Playlist["Songs",array][Index,string])
+            }else{
+                print("Error: Could not find Song at index "+Index+".")
+            }
+        }elseif(Song:find("youtube.com/watch?v=")){ #Check if the user gave a youtube link as a song
+            print("Assuming \""+Song+"\" is a youtube link.")
+            if(httpCanRequest()){
+                Start=Song:find("/watch?v=")+9
+                ID=Song:sub(Start,Start+10)
+                runOnHTTP(1)
+                httpRequest(StreamData["Youtube API Link",string]+ID)
+                setName("Converting Youtube URL")
+            }else{
+                print("Error: Cannot make conversion request. Try again in a few seconds")
+            }
+        }else{
+            print("Assuming \""+Song+"\" is a raw link.")
+            StreamData["CurrentSong",string]=Song
+            StreamData["StreamSource",entity]:streamStart(StreamData["Channel",number],Song,StreamData["Volume",number])
+            setName("Currently Playing Raw Audio Link: "+Song)
+        }
+    }
+    
+    
+    streamDisable3D(1)
+    runOnChat(1)
+}
+if(chatClk(owner())){
+    LS=lastSaid():explode(" ")
+    switch(LS[1,string]:lower()){
+        case Commands["Help Command",string],
+            printTable(Commands)
+            break
+        case Commands["Stop Current Song",string],
+            streamStop(StreamData["Channel",number])
+            break
+        case Commands["Play a song",string],
+            playSong(LS[2,string])
+            break
+        case Commands["Get Current Playlist",string],
+            printTable(invert(Playlist["Songs",array]))
+            break
+        case Commands["Set/Get Playlist ID",string],
+            
+            break
+        case Commands["Retry the last song",string],
+            if(streamCanStart()){
+                hint("Attempting to play url \""+StreamData["CurrentSong",string]+"\"",StreamData["Hint Length",number])
+                StreamData["StreamSource",entity]:streamStart(StreamData["Channel",number],StreamData["CurrentSong",string],StreamData["Volume",number])
+            }else{
+                print("Error: Cannot start stream right now. Retry in a few seconds.")
+            }
+            break
+        
+    }
+}
+if(httpClk()){
+    runOnHTTP(0)
+    local Data=httpData()
+    local JSON=jsonDecode(Data)
+    
+    if(!JSON["errorMsg",number] & httpSuccess()){
+        SongURL="https:"+JSON["vidInfo",table][JSON["vidInfo",table]:count()-3,table]["dloadUrl",string]
+        
+        
+        LastSongDuration=JSON["duration",number]+5000
+        StreamData["CurrentSong",string]=SongURL
+        StreamData["SongLength",number]=LastSongDuration
+        StreamData["StreamSource",entity]:streamStart(StreamData["Channel",number],SongURL,StreamData["Volume",number])
+        setName("Now Playing: "+JSON["vidTitle",string])
+        timer("SongHasEnded",LastSongDuration)
+    }else{
+        printTable(JSON)
+        print(Data)
+    }
+}
