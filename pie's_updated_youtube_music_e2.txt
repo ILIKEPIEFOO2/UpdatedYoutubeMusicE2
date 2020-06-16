@@ -1,8 +1,8 @@
-@name Pie's Updated Youtube Music E2 v1.3
+@name Pie's Updated Youtube Music E2 v1.3.1
 @model models/props_phx/games/chess/white_king.mdl
 @persist [Prefix,LastRequest]:string [StreamData,Commands]:table [Playlist]:gtable [LastSongDuration]
 if(first()){
-    Prefix=""
+    Prefix="."
     
     Commands=table(
         "Help Command"              =Prefix+"help",
