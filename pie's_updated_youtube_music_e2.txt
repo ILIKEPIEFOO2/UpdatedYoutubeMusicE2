@@ -1,4 +1,4 @@
-@name Pie's Updated Youtube Music E2 v1.3.1
+@name Pie's Updated Youtube Music E2 v1.3.2
 @model models/props_phx/games/chess/white_king.mdl
 @persist [Prefix,LastRequest]:string [StreamData,Commands]:table [Playlist]:gtable [LastSongDuration]
 if(first()){
@@ -274,8 +274,10 @@ if(first()){
         case Commands["Get Current Playlist",string],
             printTable(invert(Playlist["Songs",array]))
             break
-        case Commands["Set/Get Playlist ID",string],
-            
+        case Commands["Change the Volume",string],
+            local Vol=LS[2,string]:toNumber()
+            StreamData["Volume",number] = Vol
+            streamVolume(StreamData["Channel",number],Vol)
             break
         case Commands["Search for a Song by name",string],
             Title=lastSaid():sub(LS[1,string]:length()+2)
@@ -371,3 +373,4 @@ if(first()){
         timer(clkName(),1000)
     }
 }
+
